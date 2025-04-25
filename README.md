@@ -1,145 +1,100 @@
-# Multi-Language Tokenizer Suite
+# Multilingual Text Dictionary Builder
 
-A command-line toolkit for processing texts in **Aramaic**, **Hebrew**, **Greek**, **Latin**, **German**, and **English**. It supports:
+A simple, modular Python CLI to build word–ID dictionaries from text files in multiple languages (Aramaic, Hebrew, Greek, Latin, German, and English). Supports exporting individual language dictionaries or a single combined dictionary with sequential IDs.
 
-- **Unicode-based tokenization** into `.tokens` files.
-- **Vocabulary building** (per-language or combined) into JSON dictionaries.
-- **Dictionary-based tokenization** mapping words to integer IDs (`.ids` files).
+## Features
 
----
+- **Language-specific cleaning**: Strips diacritics, normalizes umlauts, removes punctuation per language.
+- **Separate or combined output**: Choose to export one JSON per language or a unified JSON mapping all words to unique IDs.
+- **Order of parsing**: Processes languages in the order Aramaic → Hebrew → Greek → Latin → German → English.
+- **Zero dependencies**: Pure Python3 using only standard library modules (`argparse`, `os`, `json`, `unicodedata`).
 
-## Project Structure
+## Directory Structure
 
 ```
-tokenizer_project/
-├── tokenizers/                 # Language-specific tokenizer classes
-│   ├── base_tokenizer.py       # Shared I/O and tokenization logic
-│   ├── aramaic_tokenizer.py    # Aramaic regex
-│   ├── hebrew_tokenizer.py     # Hebrew regex
-│   ├── greek_tokenizer.py      # Greek regex
-│   ├── latin_tokenizer.py      # Latin regex
-│   ├── german_tokenizer.py     # German regex
-│   └── english_tokenizer.py    # English regex
-├── main.py                     # Orchestrates tokenization (creates .tokens)
-├── vocabulary_builder.py       # Builds per-language or combined JSON vocab
-├── dict_tokenizer.py           # Converts text → ID sequences (single vocab)
-├── multi_dict_tokenizer.py     # Batch runs dict_tokenizer for all languages
-├── requirements.txt            # External dependencies (regex)
-├── .gitignore                  # Excludes bytecode & cache files
-└── README.md                   # This documentation
+multilingual_tokenizer/
+├── cli.py                # Command-line interface
+├── base_dict.py          # Base class for dictionary building
+├── aramaic_dict.py       # Aramaic-specific cleaning
+├── hebrew_dict.py        # Hebrew-specific cleaning
+├── greek_dict.py         # Greek-specific cleaning
+├── latin_dict.py         # Latin-specific cleaning
+├── german_dict.py        # German-specific cleaning
+├── english_dict.py       # English-specific cleaning
+└── utils.py              # Helper to instantiate in parse order
 ```
 
----
+## Installation
 
-## Requirements
-
-- **Python 3.7** or higher
-- [regex](https://pypi.org/project/regex/) module (for full Unicode support)
-
-Install dependencies with:
-
-```bash
-pip install -r requirements.txt
-```
-
----
+1. Clone or download this repository:
+   ```bash
+   git clone https://github.com/yourusername/multilingual_tokenizer.git
+   cd multilingual_tokenizer
+   ```
+2. Ensure you have Python 3.6+ installed.
 
 ## Usage
 
-### 1. Tokenization into `.tokens`
+From the project root, run `cli.py` with the language flags pointing at folders containing `.txt` files.
 
-Use `main.py` to tokenize raw `.txt` files by language.
-
-```bash
-python main.py \
-  --aramaic  texts/aramaic \
-  --hebrew   texts/hebrew  \
-  --greek    texts/greek   \
-  --latin    texts/latin   \
-  --german   texts/german  \
-  --english  texts/english \
-  --out      tokenized_output
-```
-
-Each folder’s `.txt` files become `.tokens` in `tokenized_output/<language>/`.
-
-### 2. Building Vocabularies
-
-#### Separate per-language
+### Export a combined dictionary (default)
 
 ```bash
-python vocabulary_builder.py \
-  --input  tokenized_output \
-  --output vocabularies
+python cli.py \
+  --aramaic /path/to/aramaic_folder \
+  --hebrew  /path/to/hebrew_folder \
+  --greek   /path/to/greek_folder \
+  --latin   /path/to/latin_folder \
+  --german  /path/to/german_folder \
+  --english /path/to/english_folder \
+  -o combined_dict.json
 ```
 
-Generates one JSON file per language: `vocabularies/<language>_vocab.json`.
+This creates `combined_dict.json` mapping every unique word (across all languages) to a unique integer ID.
 
-#### Combined single dictionary
+### Export separate dictionaries per language
 
 ```bash
-python vocabulary_builder.py \
-  --input          tokenized_output \
-  --output         vocabularies \
-  --combined       \
-  --combined-name  combined_vocab.json
+python cli.py --separate \
+  --hebrew  /path/to/hebrew_folder \
+  --english /path/to/english_folder \
+  -o ./output_folder
 ```
 
-Produces `vocabularies/combined_vocab.json` with all tokens.
+Creates one JSON file per language in `./output_folder` (e.g. `hebrew_dict.json`, `english_dict.json`).
 
-### 3. Dictionary-based Tokenization to `.ids`
+> **PowerShell users**: to avoid flag parsing issues, prepend `--%` to the CLI:
+> ```powershell
+> python cli.py --% --hebrew "C:\path\to\hebrew_folder" --english "C:\path\to\english_folder" -o combined.json
+> ```
 
-Use `multi_dict_tokenizer.py` to convert raw text directly into ID sequences.
+## Examples
 
-#### Separate mode (per-language vocabs)
+- **Combine Hebrew, Greek, English**
+  ```bash
+  python cli.py --hebrew "C:\...\leningrad_codex-uxlc-2.2" \
+                --greek  "C:\...\sblgnt-1.2" \
+                --english "C:\...\translations\english" \
+                -o bible_dict.json
+  ```
 
-```bash
-python multi_dict_tokenizer.py \
-  --mode       separate \
-  --vocab-dir  vocabularies \
-  --input-dir  raw_texts     \
-  --output-dir encoded_ids   \
-  --unk        0
-```
+- **Separate only English and German**
+  ```bash
+  python cli.py --separate \
+                --english /data/eng_texts \
+                --german  /data/de_texts \
+                -o ./lang_dicts
+  ```
 
-#### Combined mode (shared vocab)
+## Contributing
 
-```bash
-python multi_dict_tokenizer.py \
-  --mode           combined \
-  --vocab-dir      vocabularies        \
-  --combined-vocab vocabularies/combined_vocab.json \
-  --input-dir      raw_texts           \
-  --output-dir     encoded_ids         \
-  --unk            0
-```
-
-This writes `.ids` files (space-separated IDs) into `encoded_ids/<language>/`.
-
----
-
-## Git Configuration
-
-Add to your `.gitignore`:
-
-```
-__pycache__/
-*.py[cod]
-```
-
-This prevents committing compiled bytecode and cache folders.
-
----
-
-## Extending the Toolkit
-
-- **Add new languages**: create a `YourLangTokenizer` in `tokenizers/` with a Unicode regex, then register it in `main.py` and the vocab builder.
-- **Customize tokenization**: override `BaseTokenizer.tokenize_text()` for special rules or preprocessing.
-- **Alternate outputs**: modify writers to export CSV, XML, or database inserts.
-
----
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is released under the **MIT License**. Feel free to adapt and extend!
+MIT License
 
